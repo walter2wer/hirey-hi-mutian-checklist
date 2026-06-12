@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mutian 之后真人新用户核对表</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --text: #171a1f;
+      --muted: #657080;
+      --line: #d8dde6;
+      --accent: #136f63;
+      --accent-weak: #e2f2ee;
+      --danger: #b42318;
+      --shadow: 0 12px 32px rgba(30, 41, 59, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(246, 247, 249, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 20px 14px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .meta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .counter {
+      min-width: 132px;
+      padding: 9px 12px;
+      border: 1px solid #afd8cf;
+      background: var(--accent-weak);
+      color: #0c5048;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .search:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(19, 111, 99, 0.14);
+    }
+
+    .btn {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: #aeb8c6;
+      background: #fbfcfd;
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn.danger {
+      color: var(--danger);
+    }
+
+    main {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 20px 44px;
+    }
+
+    .list-shell {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      position: sticky;
+      top: 121px;
+      z-index: 5;
+      background: #eef1f5;
+      color: #3f4856;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      font-size: 13px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .table th:first-child,
+    .table td:first-child {
+      width: 56px;
+      text-align: center;
+    }
+
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+      width: 64px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .table th:nth-child(4),
+    .table td:nth-child(4) {
+      width: 184px;
+      white-space: nowrap;
+    }
+
+    .person-row {
+      border-bottom: 1px solid #edf0f4;
+      cursor: pointer;
+    }
+
+    .person-row:hover {
+      background: #f9fbfc;
+    }
+
+    .person-row.checked {
+      background: #edf8f4;
+    }
+
+    .person-row.hidden {
+      display: none;
+    }
+
+    td {
+      padding: 13px 12px;
+      vertical-align: middle;
+    }
+
+    .check {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .name {
+      font-weight: 650;
+      word-break: break-word;
+    }
+
+    .date {
+      color: #4a5565;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty {
+      display: none;
+      padding: 38px 16px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      background: var(--surface);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      transform: translateY(12px);
+      opacity: 0;
+      pointer-events: none;
+      background: #111827;
+      color: #fff;
+      padding: 10px 13px;
+      box-shadow: var(--shadow);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 760px) {
+      .title-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .counter {
+        width: 100%;
+      }
+
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .search {
+        grid-column: 1 / -1;
+      }
+
+      .table,
+      .table tbody,
+      .table tr,
+      .table td {
+        display: block;
+        width: 100%;
+      }
+
+      .table thead {
+        display: none;
+      }
+
+      .person-row {
+        position: relative;
+        padding: 12px 14px 12px 54px;
+      }
+
+      .table td {
+        padding: 2px 0;
+      }
+
+      .table td:first-child {
+        position: absolute;
+        left: 16px;
+        top: 18px;
+        width: auto;
+      }
+
+      .table td:nth-child(2) {
+        text-align: left;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .table td:nth-child(4) {
+        color: var(--muted);
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="title-row">
+          <div>
+            <h1>Mutian 之后真人新用户核对表</h1>
+            <div class="meta">切点：Mutian He 最早记录之后，不含 Mutian 本人，共 47 人</div>
+          </div>
+          <div class="counter" id="counter">已勾 0 / 47</div>
+        </div>
+        <div class="controls">
+          <input class="search" id="search" type="search" placeholder="搜索名字或时间" autocomplete="off">
+          <button class="btn" id="checkVisible" type="button">勾选当前</button>
+          <button class="btn primary" id="copyChecked" type="button">复制已勾</button>
+          <button class="btn danger" id="clearAll" type="button">清空</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="list-shell">
+        <table class="table" aria-label="Mutian 之后真人新用户核对表">
+          <thead>
+            <tr>
+              <th>勾</th>
+              <th>#</th>
+              <th>名字</th>
+              <th>UTC 时间</th>
+            </tr>
+          </thead>
+          <tbody id="peopleBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyState">没有匹配的名字</div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const people = [
+      { name: "Saint Thor", time: "2026-06-12 08:02" },
+      { name: "Gavin Zhu", time: "2026-06-12 06:08" },
+      { name: "Miguel Angel Cabrera", time: "2026-06-11 21:12" },
+      { name: "Yas", time: "2026-06-11 19:52" },
+      { name: "Dong Liang", time: "2026-06-11 11:43" },
+      { name: "Manuel David", time: "2026-06-11 05:26" },
+      { name: "Phoebe", time: "2026-06-10 22:40" },
+      { name: "Siya Yang", time: "2026-06-10 21:15" },
+      { name: "Max So", time: "2026-06-10 20:42" },
+      { name: "Wu", time: "2026-06-10 11:36" },
+      { name: "Kanha", time: "2026-06-10 03:56" },
+      { name: "Yitao Zhang", time: "2026-06-10 02:44" },
+      { name: "Alex Liu", time: "2026-06-09 23:21" },
+      { name: "Kevin Yu", time: "2026-06-09 06:05" },
+      { name: "Kaifu Zhang", time: "2026-06-08 23:05" },
+      { name: "Erwin Ligan", time: "2026-06-08 20:39" },
+      { name: "Matthew Semroska", time: "2026-06-08 19:21" },
+      { name: "Feiyou Guo", time: "2026-06-08 02:12" },
+      { name: "Shiki", time: "2026-06-07 06:29" },
+      { name: "David Farah", time: "2026-06-07 02:26" },
+      { name: "Sven Jonscher", time: "2026-06-07 00:26" },
+      { name: "Louan", time: "2026-06-06 23:57" },
+      { name: "Larry Sun", time: "2026-06-05 02:01" },
+      { name: "Faye Yang", time: "2026-06-05 01:26" },
+      { name: "Ruihan Wang", time: "2026-06-03 19:27" },
+      { name: "超人强", time: "2026-06-03 13:10" },
+      { name: "Chun Xia", time: "2026-06-03 05:03" },
+      { name: "Max Xie", time: "2026-06-03 02:38" },
+      { name: "Khushi Choudhary", time: "2026-06-03 02:04" },
+      { name: "黄沁", time: "2026-06-03 01:59" },
+      { name: "Wish He", time: "2026-06-02 22:43" },
+      { name: "Mark", time: "2026-06-02 20:11" },
+      { name: "Jonathan", time: "2026-06-02 17:11" },
+      { name: "Helen", time: "2026-06-02 06:15" },
+      { name: "Nicole", time: "2026-06-02 03:05" },
+      { name: "Siyu Chen", time: "2026-06-02 03:22" },
+      { name: "Alhwyn", time: "2026-06-02 00:28" },
+      { name: "Jiayu Wang", time: "2026-06-01 22:18" },
+      { name: "Owais Zahid", time: "2026-05-29 04:03" },
+      { name: "Huizi Cheng", time: "2026-05-31 21:59" },
+      { name: "Sofia Alvarez", time: "2026-05-31 06:47" },
+      { name: "Lin Wei", time: "2026-05-31 06:47" },
+      { name: "Kenji Tanaka", time: "2026-05-31 06:47" },
+      { name: "William", time: "2026-05-28 22:55" },
+      { name: "Darius", time: "2026-05-26 13:06" },
+      { name: "Jessy Tang", time: "2026-05-25 23:47" },
+      { name: "Lawrence / Lawrence Lou", time: "2026-05-25 05:19" }
+    ];
+
+    const storageKey = "hirey-hi-mutian-checklist-v1";
+    const body = document.getElementById("peopleBody");
+    const counter = document.getElementById("counter");
+    const search = document.getElementById("search");
+    const emptyState = document.getElementById("emptyState");
+    const toast = document.getElementById("toast");
+    let saved = readSaved();
+
+    function readSaved() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function writeSaved() {
+      localStorage.setItem(storageKey, JSON.stringify(saved));
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 1700);
+    }
+
+    function render() {
+      body.textContent = "";
+      people.forEach((person, index) => {
+        const id = person.name;
+        const row = document.createElement("tr");
+        row.className = "person-row";
+        row.dataset.search = `${person.name} ${person.time}`.toLowerCase();
+        row.dataset.id = id;
+
+        const checkCell = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.className = "check";
+        checkbox.type = "checkbox";
+        checkbox.checked = Boolean(saved[id]);
+        checkbox.setAttribute("aria-label", `勾选 ${person.name}`);
+        checkCell.appendChild(checkbox);
+
+        const numberCell = document.createElement("td");
+        numberCell.textContent = String(index + 1);
+
+        const nameCell = document.createElement("td");
+        nameCell.className = "name";
+        nameCell.textContent = person.name;
+
+        const dateCell = document.createElement("td");
+        dateCell.className = "date";
+        dateCell.textContent = person.time;
+
+        row.append(checkCell, numberCell, nameCell, dateCell);
+        row.classList.toggle("checked", checkbox.checked);
+        body.appendChild(row);
+      });
+      updateCounter();
+      applyFilter();
+    }
+
+    function setChecked(row, value) {
+      const id = row.dataset.id;
+      const checkbox = row.querySelector(".check");
+      checkbox.checked = value;
+      row.classList.toggle("checked", value);
+      if (value) {
+        saved[id] = true;
+      } else {
+        delete saved[id];
+      }
+      writeSaved();
+      updateCounter();
+    }
+
+    function updateCounter() {
+      const checkedCount = people.filter(person => saved[person.name]).length;
+      counter.textContent = `已勾 ${checkedCount} / ${people.length}`;
+    }
+
+    function applyFilter() {
+      const query = search.value.trim().toLowerCase();
+      let shown = 0;
+      document.querySelectorAll(".person-row").forEach(row => {
+        const visible = !query || row.dataset.search.includes(query);
+        row.classList.toggle("hidden", !visible);
+        if (visible) shown += 1;
+      });
+      emptyState.style.display = shown ? "none" : "block";
+    }
+
+    body.addEventListener("click", event => {
+      const row = event.target.closest(".person-row");
+      if (!row) return;
+      const checkbox = row.querySelector(".check");
+      const nextValue = event.target === checkbox ? checkbox.checked : !checkbox.checked;
+      setChecked(row, nextValue);
+    });
+
+    search.addEventListener("input", applyFilter);
+
+    document.getElementById("checkVisible").addEventListener("click", () => {
+      document.querySelectorAll(".person-row:not(.hidden)").forEach(row => setChecked(row, true));
+      showToast("当前可见项已勾选");
+    });
+
+    document.getElementById("clearAll").addEventListener("click", () => {
+      saved = {};
+      writeSaved();
+      document.querySelectorAll(".person-row").forEach(row => setChecked(row, false));
+      showToast("已清空");
+    });
+
+    document.getElementById("copyChecked").addEventListener("click", async () => {
+      const checked = people.filter(person => saved[person.name]);
+      const text = checked.length
+        ? checked.map((person, index) => `${index + 1}. ${person.name} (${person.time} UTC)`).join("\n")
+        : "暂无勾选";
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("已复制已勾名单");
+      } catch {
+        window.prompt("复制已勾名单", text);
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
