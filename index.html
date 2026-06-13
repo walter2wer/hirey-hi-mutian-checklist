@@ -91,7 +91,7 @@
 
     .controls {
       display: grid;
-      grid-template-columns: minmax(180px, 1fr) auto auto auto;
+      grid-template-columns: minmax(180px, 1fr) auto auto auto auto;
       gap: 10px;
       align-items: center;
     }
@@ -130,6 +130,10 @@
       border-color: var(--accent);
       background: var(--accent);
       color: #fff;
+    }
+
+    .btn.secondary {
+      border-color: #aeb8c6;
     }
 
     .btn.danger {
@@ -232,6 +236,40 @@
       background: var(--surface);
     }
 
+    .submission {
+      display: none;
+      margin-top: 14px;
+      border: 1px solid #afd8cf;
+      background: #f0faf7;
+      padding: 14px;
+    }
+
+    .submission.show {
+      display: block;
+    }
+
+    .submission-title {
+      margin: 0 0 4px;
+      color: #0c5048;
+      font-size: 16px;
+      font-weight: 750;
+    }
+
+    .submission-meta {
+      margin: 0 0 10px;
+      color: #3f645d;
+      font-size: 14px;
+    }
+
+    .submission-list {
+      margin: 0;
+      color: #1f2937;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
     .toast {
       position: fixed;
       right: 18px;
@@ -324,7 +362,8 @@
         <div class="controls">
           <input class="search" id="search" type="search" placeholder="搜索名字或时间" autocomplete="off">
           <button class="btn" id="checkVisible" type="button">勾选当前</button>
-          <button class="btn primary" id="copyChecked" type="button">复制已勾</button>
+          <button class="btn primary" id="submitSaved" type="button">提交保存</button>
+          <button class="btn secondary" id="copyChecked" type="button">复制已勾</button>
           <button class="btn danger" id="clearAll" type="button">清空</button>
         </div>
       </div>
@@ -345,6 +384,11 @@
         </table>
       </div>
       <div class="empty" id="emptyState">没有匹配的名字</div>
+      <section class="submission" id="submissionPanel" aria-live="polite">
+        <h2 class="submission-title">已提交保存</h2>
+        <p class="submission-meta" id="submissionMeta"></p>
+        <pre class="submission-list" id="submissionList"></pre>
+      </section>
     </main>
   </div>
 
@@ -402,12 +446,17 @@
     ];
 
     const storageKey = "hirey-hi-mutian-checklist-v1";
+    const submissionKey = "hirey-hi-mutian-submission-v1";
     const body = document.getElementById("peopleBody");
     const counter = document.getElementById("counter");
     const search = document.getElementById("search");
     const emptyState = document.getElementById("emptyState");
+    const submissionPanel = document.getElementById("submissionPanel");
+    const submissionMeta = document.getElementById("submissionMeta");
+    const submissionList = document.getElementById("submissionList");
     const toast = document.getElementById("toast");
     let saved = readSaved();
+    let submission = readSubmission();
 
     function readSaved() {
       try {
@@ -419,6 +468,18 @@
 
     function writeSaved() {
       localStorage.setItem(storageKey, JSON.stringify(saved));
+    }
+
+    function readSubmission() {
+      try {
+        return JSON.parse(localStorage.getItem(submissionKey)) || null;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeSubmission() {
+      localStorage.setItem(submissionKey, JSON.stringify(submission));
     }
 
     function showToast(text) {
@@ -462,6 +523,31 @@
       });
       updateCounter();
       applyFilter();
+      renderSubmission();
+    }
+
+    function getCheckedPeople() {
+      return people.filter(person => saved[person.name]);
+    }
+
+    function formatSubmission(checked, submittedAt) {
+      const header = `提交时间：${submittedAt}\n已勾：${checked.length} / ${people.length}`;
+      const lines = checked.length
+        ? checked.map((person, index) => `${index + 1}. ${person.name} (${person.time} UTC)`)
+        : ["暂无勾选"];
+      return `${header}\n\n${lines.join("\n")}`;
+    }
+
+    function renderSubmission() {
+      if (!submission) {
+        submissionPanel.classList.remove("show");
+        return;
+      }
+      submissionPanel.classList.add("show");
+      submissionMeta.textContent = `提交时间：${submission.submittedAt} · 已勾 ${submission.checked.length} / ${people.length}`;
+      submissionList.textContent = submission.checked.length
+        ? submission.checked.map((person, index) => `${index + 1}. ${person.name} (${person.time} UTC)`).join("\n")
+        : "暂无勾选";
     }
 
     function setChecked(row, value) {
@@ -511,21 +597,41 @@
 
     document.getElementById("clearAll").addEventListener("click", () => {
       saved = {};
+      submission = null;
       writeSaved();
+      localStorage.removeItem(submissionKey);
       document.querySelectorAll(".person-row").forEach(row => setChecked(row, false));
+      renderSubmission();
       showToast("已清空");
     });
 
     document.getElementById("copyChecked").addEventListener("click", async () => {
-      const checked = people.filter(person => saved[person.name]);
-      const text = checked.length
-        ? checked.map((person, index) => `${index + 1}. ${person.name} (${person.time} UTC)`).join("\n")
-        : "暂无勾选";
+      const checked = getCheckedPeople();
+      const text = formatSubmission(checked, new Date().toLocaleString("zh-CN"));
       try {
         await navigator.clipboard.writeText(text);
         showToast("已复制已勾名单");
       } catch {
         window.prompt("复制已勾名单", text);
+      }
+    });
+
+    document.getElementById("submitSaved").addEventListener("click", async () => {
+      const checked = getCheckedPeople();
+      const submittedAt = new Date().toLocaleString("zh-CN");
+      submission = {
+        submittedAt,
+        checked: checked.map(person => ({ name: person.name, time: person.time }))
+      };
+      writeSubmission();
+      renderSubmission();
+
+      const text = formatSubmission(checked, submittedAt);
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("已保存并复制提交结果");
+      } catch {
+        showToast("已保存");
       }
     });
 
